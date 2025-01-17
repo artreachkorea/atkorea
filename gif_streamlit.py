@@ -2,8 +2,11 @@ import os
 import subprocess
 import streamlit as st
 import tempfile
+import requests
+import zipfile
+import shutil
 
-# FFmpeg 설치 확인 및 다운로드
+# FFmpeg 설치 확인 및 다운로드 (Windows용)
 def check_ffmpeg():
     try:
         # FFmpeg 버전 확인
@@ -11,13 +14,30 @@ def check_ffmpeg():
     except FileNotFoundError:
         st.info("FFmpeg가 설치되지 않았습니다. 설치를 진행합니다...")
         try:
-            # FFmpeg 다운로드 (Linux 환경 기준)
-            ffmpeg_url = "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-64bit-static.tar.xz"
-            subprocess.run(["wget", ffmpeg_url], check=True)
-            subprocess.run(["tar", "xvf", "ffmpeg-release-64bit-static.tar.xz"], check=True)
-            ffmpeg_dir = "ffmpeg-release-64bit-static"
-            os.environ["PATH"] += os.pathsep + os.path.abspath(ffmpeg_dir)
-            st.success("FFmpeg 설치 완료!")
+            # FFmpeg 다운로드 URL (Windows 용)
+            ffmpeg_url = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+            ffmpeg_zip_path = os.path.join(tempfile.gettempdir(), "ffmpeg-release-essentials.zip")
+            ffmpeg_extract_dir = os.path.join(tempfile.gettempdir(), "ffmpeg")
+
+            # FFmpeg 압축 파일 다운로드
+            st.info("FFmpeg 압축 파일을 다운로드 중...")
+            with open(ffmpeg_zip_path, "wb") as f:
+                f.write(requests.get(ffmpeg_url).content)
+
+            # 압축 해제
+            st.info("FFmpeg 압축 해제 중...")
+            with zipfile.ZipFile(ffmpeg_zip_path, "r") as zip_ref:
+                zip_ref.extractall(ffmpeg_extract_dir)
+
+            # FFmpeg 실행 파일 경로를 환경 변수에 추가
+            bin_dir = os.path.join(ffmpeg_extract_dir, "ffmpeg-*-essentials_build", "bin")
+            bin_dir = next((path for path in glob.glob(bin_dir)), None)  # 정확한 경로 확인
+            if bin_dir and os.path.exists(bin_dir):
+                os.environ["PATH"] += os.pathsep + bin_dir
+                st.success("FFmpeg 설치 완료!")
+            else:
+                st.error("FFmpeg 설치 실패: bin 디렉토리를 찾을 수 없습니다.")
+
         except Exception as e:
             st.error(f"FFmpeg 설치 중 오류 발생: {e}")
 
